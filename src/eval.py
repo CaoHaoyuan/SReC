@@ -13,6 +13,9 @@ from src import data as lc_data
 from src import network
 from src.l3c import timer
 
+import pickle
+import copy
+
 
 def run_eval(
         loader: data.DataLoader, compressor: nn.Module,
@@ -21,6 +24,9 @@ def run_eval(
     time_accumulator = timer.TimeAccumulator()
     compressor.eval()
     cur_agg_size = 0
+
+    #  Get the individual images' bpsp
+    individual_bpsps = [{} for _ in range(500)]  # list of dictionary
 
     with torch.no_grad():
         # BitsKeeper is used to aggregates bits from all eval iterations.
@@ -33,13 +39,29 @@ def run_eval(
             bits_keeper.add_bits(bits)
 
             bpsp = bits_keeper.get_total_bpsp(cur_agg_size)
+
+            # Get the individual images' bpsp
+
+            individual_bpsps[i]["rounding"] = copy.deepcopy(bits.get_bits("eval/0_rounding")) \
+                                          + copy.deepcopy(bits.get_bits("eval/1_rounding")) \
+                                          + copy.deepcopy(bits.get_bits("eval/2_rounding"))
+            individual_bpsps[i]["image_3"] = copy.deepcopy(bits.get_bits("eval/codes_0"))
+            individual_bpsps[i]["image_2"] = copy.deepcopy(bits.get_bits("eval/0_0")) + \
+                                         copy.deepcopy(bits.get_bits("eval/0_1")) + \
+                                         copy.deepcopy(bits.get_bits("eval/0_2"))
+            individual_bpsps[i]["image_1"] = copy.deepcopy(bits.key_to_bits["eval/1_0"].item()) + \
+                                         copy.deepcopy(bits.key_to_bits["eval/1_1"].item()) + \
+                                         copy.deepcopy(bits.key_to_bits["eval/1_2"].item())
+            individual_bpsps[i]["image_0"] = copy.deepcopy(bits.key_to_bits["eval/2_0"].item()) + \
+                                         copy.deepcopy(bits.key_to_bits["eval/2_1"].item()) + \
+                                         copy.deepcopy(bits.key_to_bits["eval/2_2"].item())
             print(
                 f"Bpsp: {bpsp.item():.3f}; Number of Images: {i + 1}; "
                 f"Batch Time: {time_accumulator.mean_time_spent()}",
                 end="\r")
 
         print()
-    return bits_keeper, cur_agg_size
+    return bits_keeper, cur_agg_size, individual_bpsps
 
 
 def count_params(model: nn.Module) -> int:
@@ -69,7 +91,6 @@ def main(
         path: str, file, workers: int, resblocks: int, n_feats: int,
         scale: int, load: str, k: int, crop: int,
 ) -> None:
-
     configs.n_feats = n_feats
     configs.resblocks = resblocks
     configs.K = k
@@ -107,10 +128,17 @@ def main(
     )
     print(f"Loaded dataset with {len(dataset)} images")
 
-    bits, inp_size = run_eval(loader, compressor)
+    bits, inp_size, individual_bpsps = run_eval(loader, compressor)
     for key in bits.get_keys():
         print(f"{key}:", bits.get_scaled_bpsp(key, inp_size))
 
+    print("Average total bpsp is: ", bits.get_total_bpsp(inp_size))
+
+
+    # Get the individual images' bpsp
+    # save the individual_bpsps
+    with open('test.p', 'wb') as f:
+        pickle.dump(individual_bpsps,f)
 
 if __name__ == "__main__":
     main()

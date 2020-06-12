@@ -273,6 +273,8 @@ class Compressor(nn.Module):
         assert configs.scale >= 0, configs.scale
 
         self.loss_fn = lm.DiscretizedMixLogisticLoss(rgb_scale=True)
+
+
         self.ctx_upsamplers = nn.ModuleList([
             nn.Identity(),  # type: ignore
             *[edsr.Upsampler(scale=2, n_feats=configs.n_feats)
