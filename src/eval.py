@@ -26,7 +26,7 @@ def run_eval(
     cur_agg_size = 0
 
     #  Get the individual images' bpsp
-    individual_bpsps = [{} for _ in range(500)]  # list of dictionary
+    individual_bpsps = [{} for _ in range(1000)]  # list of dictionary
 
     with torch.no_grad():
         # BitsKeeper is used to aggregates bits from all eval iterations.
@@ -46,9 +46,9 @@ def run_eval(
                                           + copy.deepcopy(bits.get_bits("eval/1_rounding")) \
                                           + copy.deepcopy(bits.get_bits("eval/2_rounding"))
             individual_bpsps[i]["image_3"] = copy.deepcopy(bits.get_bits("eval/codes_0"))
-            individual_bpsps[i]["image_2"] = copy.deepcopy(bits.get_bits("eval/0_0")) + \
-                                         copy.deepcopy(bits.get_bits("eval/0_1")) + \
-                                         copy.deepcopy(bits.get_bits("eval/0_2"))
+            individual_bpsps[i]["image_2"] = copy.deepcopy(bits.key_to_bits["eval/0_0"].item()) + \
+                                         copy.deepcopy(bits.key_to_bits["eval/0_1"].item()) + \
+                                         copy.deepcopy(bits.key_to_bits["eval/0_2"].item())
             individual_bpsps[i]["image_1"] = copy.deepcopy(bits.key_to_bits["eval/1_0"].item()) + \
                                          copy.deepcopy(bits.key_to_bits["eval/1_1"].item()) + \
                                          copy.deepcopy(bits.key_to_bits["eval/1_2"].item())
@@ -59,6 +59,8 @@ def run_eval(
                 f"Bpsp: {bpsp.item():.3f}; Number of Images: {i + 1}; "
                 f"Batch Time: {time_accumulator.mean_time_spent()}",
                 end="\r")
+            if(i == 999):
+                break
 
         print()
     return bits_keeper, cur_agg_size, individual_bpsps

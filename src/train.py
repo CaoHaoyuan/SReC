@@ -8,7 +8,8 @@ import torch
 import torchvision.transforms as T
 from PIL import ImageFile
 from torch import nn, optim
-from torch.utils import data, tensorboard
+from torch.utils import data
+from tensorboardX import SummaryWriter
 
 from src import configs
 from src import data as lc_data
@@ -17,7 +18,7 @@ from src.l3c import timer
 
 
 def plot_bpsp(
-        plotter: tensorboard.SummaryWriter, bits: network.Bits,
+        plotter: SummaryWriter, bits: network.Bits,
         inp_size: int, train_iter: int
 ) -> None:
     """ Plot bpsps for all keys on tensorboard.
@@ -45,7 +46,7 @@ def plot_bpsp(
 def train_loop(
         x: torch.Tensor, compressor: nn.Module,
         optimizer: optim.Optimizer,  # type: ignore
-        train_iter: int, plotter: tensorboard.SummaryWriter,
+        train_iter: int, plotter: SummaryWriter,
         plot_iters: int, clip: float,
 ) -> None:
     """ Training loop for one batch. Computes grads and runs optimizer.
@@ -70,7 +71,7 @@ def train_loop(
 
 def run_eval(
         eval_loader: data.DataLoader, compressor: nn.Module,
-        train_iter: int, plotter: tensorboard.SummaryWriter,
+        train_iter: int, plotter: SummaryWriter,
         epoch: int,
 ) -> None:
     """ Runs entire eval epoch. """
@@ -279,7 +280,7 @@ def main(
         eval_iters = len(train_loader)
 
     for epoch in range(starting_epoch, epochs):
-        with tensorboard.SummaryWriter(plot) as plotter:
+        with SummaryWriter(plot) as plotter:
             # input: List[Tensor], downsampled images.
             # sizes: N scale 4
             for _, inputs in train_loader:
@@ -309,7 +310,7 @@ def main(
             lr_scheduler.step()  # type: ignore
             dataset_index = 0
 
-    with tensorboard.SummaryWriter(plot) as plotter:
+    with SummaryWriter(plot) as plotter:
         run_eval(eval_loader, compressor, train_iter,
                  plotter, epochs)
     save(compressor, train_sampler.indices, train_sampler.index,
